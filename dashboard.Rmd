@@ -1,0 +1,134 @@
+---
+title: "Playing Around with Dashboards - Example #1 of possible output for Engagement Survey"
+output: 
+  flexdashboard::flex_dashboard: 
+    orientation: rows
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(ggplot2)
+```
+
+Column {data-width=600}
+-----------------------------------------------------------------------
+
+### Frequency of Response (1=Disengaged; 5=Engaged) 
+
+Report Generated `r format(Sys.time(), "%A %B %d %Y %X")`
+
+```{r}
+
+data <- read.csv("engage2.txt")
+
+## data <- read.csv("engage2.csv")
+
+plot_multi_histogram <- function(df, feature, label_column) {
+    plt <- ggplot(df, aes(x=eval(parse(text=feature)), fill=eval(parse(text=label_column)))) +
+#    geom_histogram(alpha=0.7, position="identity", aes(y = ..density..), color="black") +
+    geom_density(alpha=0.7) +
+    geom_vline(aes(xintercept=mean(eval(parse(text=feature)))), color="black", linetype="dashed", size=1) +
+    labs(x=feature, y = "Frequency")
+    plt + guides(fill=guide_legend(title=label_column))
+}
+
+mean <- round(mean(data$Engage),1)      ## Will call this object up later in dashboard
+
+plot_multi_histogram(data, 'Engage', 'Division')
+
+## interactive dashboard - allow multiple norms comparisons to be plotted in same plotting space (e.g., how stand relative to NorthEast, Midwest, etc.)
+
+```
+
+> Currently presented separately by Division (Chigago, Detroit, MSP); dashed line represents overall mean (`r mean`)
+
+
+### Mean level Egagement by Shift and Department
+
+```{r}
+
+data_summary <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      sd = sd(x[[col]], na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+df3 <- data_summary(data, varname="Engage", 
+                    groupnames=c("Shift", "Department"))
+
+p <- ggplot(df3, aes(x=Shift, y=Engage, fill=Department)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  geom_errorbar(aes(ymin=Engage-sd, ymax=Engage+sd), width=.2,  position=position_dodge(.9)) +
+  coord_cartesian(ylim=c(1,5.5))
+
+p + scale_fill_brewer(palette="Paired") +
+  theme_minimal() ## + coord_flip()
+
+## putting here so can call up names in script below
+
+df4 <- data_summary(data, varname="Engage", 
+                    groupnames=("Division"))
+
+```
+
+> Error bars represent similar/dissimilar attitudes
+
+Column {data-width=400}
+-------------------------------------
+
+### `r df4[1,1]` Engagement Ratings
+
+```{r, fig.width=1, fig.height=5}
+
+## Need conditional statement for number of gauges (currently 3)
+par(mfrow=c(1,4))
+
+df4$Engage.p <- round((((df4$Engage-1)/4)*100),0)   ## integers to represent % towards 5
+                                                    ## difficult when 1-5 because of missing zero
+
+a <- df4[1,4]     ## can use to fill in value for gauge (below)
+
+gauge(a, min=0, max=100, symbol = '%', gaugeSectors(success=c(75,100), warning=c(46,74), danger=c(0,45), colors = c("limegreen", "gold", "red")))
+
+```
+
+
+### `r df4[2,1]` Engagement Ratings
+
+```{r, fig.width=1, fig.height=5}
+
+b <- df4[2,4]     ## can use to fill in value for gauge (below)
+
+gauge(b, min=0, max=100, symbol = '%', gaugeSectors(success=c(75,100), warning=c(46,74), danger=c(0,45), colors = c("limegreen", "gold", "red")))
+
+
+```
+
+
+### `r df4[3,1]` Engagement Ratings
+
+```{r, fig.width=1, fig.height=5}
+
+c <- df4[3,4]     ## can use to fill in value for gauge (below)
+
+gauge(c, min=0, max=100, symbol = '%', gaugeSectors(success=c(75,100), warning=c(46,74), danger=c(0,45), colors = c("limegreen", "gold", "red")))
+
+```
+
+
+### `r df4[4,1]` Engagement Ratings
+
+```{r, fig.width=1, fig.height=5}
+
+c <- df4[4,4]     ## can use to fill in value for gauge (below)
+
+gauge(c, min=0, max=100, symbol = '%', gaugeSectors(success=c(75,100), warning=c(46,74), danger=c(0,45), colors = c("limegreen", "gold", "red")))
+
+```
